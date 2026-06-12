@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>КликКлан — кликер, кланы, друзья</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(145deg, #0a0f1e 0%, #0c1222 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            font-size: 18px;
+            color: #f0f0f0;
+        }
+        .game-container {
+            max-width: 1400px;
+            width: 100%;
+            background: rgba(10,20,30,0.75);
+            backdrop-filter: blur(4px);
+            border-radius: 3rem;
+            padding: 1.5rem;
+            border: 1px solid rgba(255,215,0,0.4);
+        }
+        .stats-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            background: #03060ecc;
+            border-radius: 2rem;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #ffd966;
+        }
+        .stat-card {
+            background: #18202e;
+            padding: 0.5rem 1.2rem;
+            border-radius: 2rem;
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+        }
+        .stat-value { font-size: 2rem; font-weight: 800; color: #ffea9e; }
+        .menu-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: #ffb347;
+            border: none;
+            font-size: 2rem;
+            width: 55px;
+            height: 55px;
+            border-radius: 30px;
+            cursor: pointer;
+            z-index: 1001;
+            box-shadow: 0 4px 12px black;
+        }
+        .menu-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100%;
+            background: #0f1422ee;
+            backdrop-filter: blur(16px);
+            border-right: 2px solid #ffb347;
+            z-index: 1000;
+            padding: 80px 20px 30px;
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .menu-panel.show { display: flex; }
+        .menu-item {
+            background: #1e2a3acc;
+            padding: 12px;
+            border-radius: 40px;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid #ffb34788;
+        }
+        .menu-overlay {
+            position: fixed;
+            top:0; left:0;
+            width:100%; height:100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+        .tab-pane { display: none; }
+        .tab-pane.active-pane { display: block; }
+        .click-btn {
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, #f5b042, #d67a1f);
+            border-radius: 50%;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 20px 30px rgba(0,0,0,0.5);
+            border: 3px solid #ffcd7e;
+        }
+        .click-icon {
+            font-size: 5rem;
+            transition: transform 0.1s;
+        }
+        .click-btn:active .click-icon {
+            transform: scale(0.9);
+        }
+        .quest-progress {
+            background: #2a2e3f;
+            border-radius: 20px;
+            height: 20px;
+            margin: 10px 0;
+        }
+        .quest-progress-fill { background: linear-gradient(90deg, #ffaa44, #ffdd77); width: 0%; height: 100%; border-radius: 20px; }
+        .btn-action {
+            background: #4a6c8f;
+            border: none;
+            color: white;
+            padding: 8px 18px;
+            border-radius: 2rem;
+            cursor: pointer;
+        }
+        .item-card, .clan-card, .friend-card, .market-item, .profile-box {
+            background: #1a1f2e;
+            border-radius: 1.2rem;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            border: 1px solid #ffb34766;
+        }
+        input, textarea {
+            background: #2a2e42;
+            border: 1px solid #ffb347;
+            border-radius: 2rem;
+            padding: 8px 15px;
+            color: white;
+        }
+        .modal {
+            position: fixed;
+            top:0; left:0;
+            width:100%; height:100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background: #1a1f2e;
+            border-radius: 2rem;
+            padding: 1.5rem;
+            width: 90%;
+            max-width: 500px;
+        }
+        .flex-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .rank-table { width: 100%; border-collapse: collapse; }
+        .rank-table th, .rank-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ffb34755; }
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #1f2c1fdd;
+            padding: 8px 18px;
+            border-radius: 40px;
+            z-index: 1002;
+            pointer-events: none;
+            border-left: 5px solid gold;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top:0; left:0; right:0; bottom:0;
+            background-color: #5a5a6e;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        input:checked + .slider { background-color: #ffb347; }
+        input:checked + .slider:before { transform: translateX(26px); }
+    </style>
+</head>
+<body>
+<div class="game-container" id="app">
+    <div class="stats-bar">
+        <div class="stat-card"><span>🪙</span><span id="coinAmount" class="stat-value">0</span></div>
+        <div class="stat-card"><span>⚡</span><span id="clickPowerShow" class="stat-value">1</span></div>
+        <div class="stat-card"><span>📦</span><span id="itemCount" class="stat-value">0</span></div>
+        <div class="stat-card"><span>🎯</span><span id="levelValue" class="stat-value">1</span></div>
+        <div class="stat-card"><span>✨</span><span id="xpValue" class="stat-value">0</span><span>/<span id="nextXpReq">100</span></span></div>
+    </div>
+    <div id="mainContent"></div>
+</div>
+<button class="menu-btn" id="menuToggle">☰</button>
+<div class="menu-panel" id="menuPanel">
+    <div class="menu-item" data-tab="main">🏠 Кликер</div>
+    <div class="menu-item" data-tab="inventory">🎒 Инвентарь</div>
+    <div class="menu-item" data-tab="market">🏪 Биржа</div>
+    <div class="menu-item" data-tab="friends">👥 Друзья</div>
+    <div class="menu-item" data-tab="rating">🏆 Рейтинг</div>
+    <div class="menu-item" data-tab="clans">⚔️ Кланы</div>
+    <div class="menu-item" data-tab="search">🔍 Поиск</div>
+    <div class="menu-item" data-tab="profile">👤 Профиль</div>
+</div>
+<div class="menu-overlay" id="menuOverlay"></div>
+<div id="notify" class="notification" style="opacity:0;">✨</div>
+
+<script>
+    // ------------------------------------------------------------------
+    // Клиент игры "КликКлан" с интеграцией с сервером
+    // ------------------------------------------------------------------
+    let playerId = localStorage.getItem('playerId');
+    if (!playerId) { playerId = 'p_' + Math.random().toString(36).substr(2, 10); localStorage.setItem('playerId', playerId); }
+    let playerData = null;
+
+    async function apiCall(endpoint, method = 'GET', body = null) {
+        const options = { method, headers: { 'Content-Type': 'application/json' } };
+        if (body) options.body = JSON.stringify(body);
+        const res = await fetch(`/api${endpoint}`, options);
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+    }
+
+    async function saveToServer() {
+        if (!playerData) return;
+        await apiCall('/save', 'POST', { playerId, data: playerData });
+    }
+
+    async function loadFromServer() {
+        try {
+            const data = await apiCall(`/load/${playerId}`);
+            playerData = data;
+            coins = playerData.coins;
+            clickUpgradeLevel = playerData.clickUpgradeLevel;
+            totalClicks = playerData.totalClicks;
+            inventory = playerData.inventory;
+            marketListings = playerData.marketListings;
+            playerLevel = playerData.level;
+            currentXp = playerData.xp;
+            totalCoinsEarned = playerData.totalCoinsEarned;
+            totalChestsOpened = playerData.totalChestsOpened;
+            activeQuest = playerData.activeQuest;
+            myReferralCode = playerData.referralCode;
+            usedReferralByMe = playerData.usedReferralCode;
+            invitedFriends = playerData.friends;
+            playerName = playerData.name;
+            myClanId = playerData.clanId;
+            updateUI();
+            renderQuestUI();
+            renderInventory();
+            renderMarket();
+            updateRating();
+            if (document.getElementById('clansTab')?.classList.contains('active-pane')) renderClanUI();
+            return true;
+        } catch(e) { console.error(e); return false; }
+    }
+
+    async function registerOnServer() {
+        const resp = await apiCall('/register', 'POST', { playerId, name: playerName });
+        if (resp) playerData = resp;
+    }
+
+    let coins = 200, clickUpgradeLevel = 0, totalClicks = 0;
+    let inventory = [], marketListings = [];
+    let playerName = localStorage.getItem('playerName') || 'Игрок';
+    let myReferralCode = "", usedReferralByMe = null, invitedFriends = [];
+    let playerLevel = 1, currentXp = 0, totalCoinsEarned = 200, totalChestsOpened = 0;
+    let activeQuest = null;
+    let myClanId = null;
+
+    function showNotify(msg, good) {
+        let n = document.getElementById('notify');
+        n.style.opacity = '1';
+        n.innerHTML = good ? `✅ ${msg}` : `⚠️ ${msg}`;
+        n.style.background = good ? '#1f3a1fdd' : '#3a2828dd';
+        setTimeout(() => n.style.opacity = '0', 2000);
+    }
+
+    function xpRequiredForLevel(level) { return 100 + (level-1)*35; }
+    function generateQuest(level) {
+        const types = ['clicks', 'coins', 'chests'];
+        const type = types[Math.floor(Math.random()*3)];
+        let target, rewardCoins, rewardXp;
+        if(type === 'clicks') { target = Math.max(15,20+Math.floor(level*2.5)); rewardCoins=80+level*15; rewardXp=40+level*8; }
+        else if(type === 'coins') { target = Math.max(150,120+level*40); rewardCoins=100+level*18; rewardXp=45+level*9; }
+        else { target = Math.max(2,1+Math.floor(level/2)); rewardCoins=120+level*20; rewardXp=60+level*10; }
+        return { id:Date.now()+'_'+type, type, target, rewardCoins, rewardXp, description: type==='clicks'?`Сделайте ${target} кликов`:(type==='coins'?`Заработайте ${target} монет`:`Откройте ${target} сундуков`), current:0 };
+    }
+    function updateQuestProgress() {
+        if(!activeQuest) return;
+        let cur = activeQuest.type==='clicks'?totalClicks:(activeQuest.type==='coins'?totalCoinsEarned:totalChestsOpened);
+        activeQuest.current = Math.min(cur, activeQuest.target);
+        if(cur >= activeQuest.target) completeQuest();
+        renderQuestUI();
+        saveToServer();
+    }
+    function completeQuest() {
+        if(activeQuest.current < activeQuest.target) return;
+        coins += activeQuest.rewardCoins;
+        addXp(activeQuest.rewardXp);
+        showNotify(`Задание выполнено! +${activeQuest.rewardCoins}🪙 +${activeQuest.rewardXp}✨`, true);
+        activeQuest = generateQuest(playerLevel);
+        updateQuestProgress();
+        saveToServer();
+    }
+    function renderQuestUI() {
+        let desc = document.getElementById('questDescription');
+        let fill = document.getElementById('questProgressFill');
+        let text = document.getElementById('questProgressText');
+        let badge = document.getElementById('questRewardBadge');
+        if(desc && activeQuest) {
+            desc.innerText = activeQuest.description;
+            let percent = (activeQuest.current/activeQuest.target)*100;
+            fill.style.width = `${percent}%`;
+            text.innerText = `${activeQuest.current}/${activeQuest.target}`;
+            badge.innerText = `🏆 +${activeQuest.rewardCoins}🪙 +${activeQuest.rewardXp}✨`;
+        }
+    }
+    function addXp(amount) {
+        if(amount<=0) return;
+        currentXp += amount;
+        let required = xpRequiredForLevel(playerLevel);
+        while(currentXp >= required) {
+            currentXp -= required;
+            playerLevel++;
+            onLevelUp();
+            required = xpRequiredForLevel(playerLevel);
+        }
+        updateUI();
+        saveToServer();
+    }
+    function onLevelUp() {
+        activeQuest = generateQuest(playerLevel);
+        updateQuestProgress();
+        const rare = ["🌟 Звездный осколок","⚡ Молния","🔮 Кристалл","🍀 Клевер","🛡️ Амулет"];
+        let name = rare[Math.floor(Math.random()*5)] + ` (ур.${playerLevel})`;
+        inventory.push({ itemId: `lvl_${Date.now()}`, itemName: name, baseValue: 60+playerLevel*4 });
+        showNotify(`🎁 Новый предмет: ${name}`, true);
+        saveToServer();
+    }
+    function addCoins(amount) {
+        coins += amount;
+        totalCoinsEarned += amount;
+        if(activeQuest && activeQuest.type === 'coins') updateQuestProgress();
+        updateUI();
+        saveToServer();
+    }
+    function addChest() {
+        totalChestsOpened++;
+        if(activeQuest && activeQuest.type === 'chests') updateQuestProgress();
+        updateUI();
+    }
+    function updateUI() {
+        document.getElementById('coinAmount').innerText = Math.floor(coins);
+        document.getElementById('clickPowerShow').innerText = 1+clickUpgradeLevel;
+        document.getElementById('clickPowerBadge').innerHTML = `💥 Сила клика: ${1+clickUpgradeLevel}`;
+        document.getElementById('itemCount').innerText = inventory.length;
+        document.getElementById('levelValue').innerText = playerLevel;
+        document.getElementById('xpValue').innerText = currentXp;
+        document.getElementById('nextXpReq').innerText = xpRequiredForLevel(playerLevel);
+        renderShop();
+        saveToServer();
+    }
+    function renderShop() {
+        let cont = document.getElementById('shopContainer');
+        if(!cont) return;
+        let price = 50 + clickUpgradeLevel*30;
+        cont.innerHTML = `<div class="item-card"><div><h4>🔨 Улучшение клика +1</h4><div>💰 ${price} 🪙</div></div><button class="btn-action" id="buyUpgradeBtn">Купить</button></div>`;
+        document.getElementById('buyUpgradeBtn')?.addEventListener('click',()=>{
+            if(coins>=price){ coins-=price; clickUpgradeLevel++; showNotify(`Сила клика до ${1+clickUpgradeLevel}!`,true); updateUI(); }
+            else showNotify(`Не хватает ${price}`,false);
+        });
+    }
+    function openChest(){
+        if(coins<50){ showNotify("Нужно 50 монет",false); return; }
+        coins-=50;
+        let drops=[{name:"💎 Алмаз",val:35},{name:"🔮 Кристалл",val:70},{name:"⚙️ Шестерня",val:45},{name:"🍀 Клевер",val:25},{name:"✨ Эссенция",val:90}];
+        let drop=drops[Math.floor(Math.random()*drops.length)];
+        inventory.push({itemId:`ch_${Date.now()}`, itemName:drop.name, baseValue:drop.val});
+        showNotify(`🎁 Сундук: ${drop.name}`,true);
+        addChest();
+        updateUI();
+        if(document.getElementById('inventoryTab')?.classList?.contains('active-pane')) renderInventory();
+    }
+    function renderInventory(){
+        let cont=document.getElementById('inventoryList');
+        if(!cont) return;
+        if(!inventory.length){ cont.innerHTML='<div>Нет предметов. Откройте сундук!</div>'; return; }
+        let html='';
+        inventory.forEach((it,idx)=>{
+            html+=`<div class="item-card"><div><strong>${it.itemName}</strong> (💰 ${it.baseValue})</div><div><input type="number" id="priceInv_${idx}" value="${it.baseValue}" style="width:80px"><button class="btn-action sell" data-idx="${idx}" data-id="${it.itemId}" data-name="${it.itemName}" data-val="${it.baseValue}">Выставить</button></div></div>`;
+        });
+        cont.innerHTML=html;
+        document.querySelectorAll('.btn-action.sell').forEach(btn=>{
+            btn.addEventListener('click',()=>{
+                let idx=parseInt(btn.dataset.idx), itemId=btn.dataset.id, name=btn.dataset.name, base=parseInt(btn.dataset.val);
+                let price=parseInt(document.getElementById(`priceInv_${idx}`).value);
+                if(isNaN(price)||price<1) price=base;
+                if(inventory[idx] && inventory[idx].itemId===itemId){
+                    marketListings.push({listingId:`list_${Date.now()}`, sellerId:playerId, itemId, itemName:name, price});
+                    inventory.splice(idx,1);
+                    showNotify(`Товар "${name}" выставлен за ${price}`,true);
+                    updateUI(); renderInventory(); saveToServer();
+                    if(document.getElementById('marketTab')?.classList?.contains('active-pane')) renderMarket();
+                }
+            });
+        });
+    }
+    function renderMarket(){
+        let cont=document.getElementById('marketList');
+        if(!cont) return;
+        let foreign=marketListings.filter(l=>l.sellerId!==playerId);
+        if(!foreign.length){ cont.innerHTML='<div>На бирже пусто</div>'; return; }
+        let html='';
+        foreign.forEach(list=>{
+            html+=`<div class="market-item"><div><strong>${list.itemName}</strong><br>💰 ${list.price}</div><button class="btn-action buy" data-id="${list.listingId}" data-price="${list.price}" data-name="${list.itemName}">Купить</button></div>`;
+        });
+        cont.innerHTML=html;
+        document.querySelectorAll('.btn-action.buy').forEach(btn=>{
+            btn.addEventListener('click',()=>{
+                let lid=btn.dataset.id, price=parseInt(btn.dataset.price), name=btn.dataset.name;
+                let idx=marketListings.findIndex(l=>l.listingId===lid);
+                if(idx===-1){ showNotify("Уже продано",false); renderMarket(); return; }
+                if(coins>=price){
+                    coins-=price;
+                    inventory.push({itemId:`bought_${Date.now()}`, itemName:name, baseValue:Math.floor(price*0.7)});
+                    marketListings.splice(idx,1);
+                    showNotify(`Куплен ${name} за ${price}🪙`,true);
+                    updateUI(); renderMarket(); if(document.getElementById('inventoryTab')?.classList?.contains('active-pane')) renderInventory();
+                    saveToServer();
+                } else showNotify(`Не хватает ${price}`,false);
+            });
+        });
+    }
+
+    async function sendFriendInvite(codeOrId) {
+        try {
+            await apiCall('/friends/invite', 'POST', { fromPlayerId: playerId, toPlayerIdOrCode: codeOrId });
+            showNotify("Приглашение отправлено!", true);
+        } catch(e) { showNotify(e.message, false); }
+    }
+    async function loadPendingRequests() {
+        try {
+            const requests = await apiCall(`/friends/pending/${playerId}`);
+            let container = document.getElementById('pendingRequestsList');
+            if(!container) return;
+            if(requests.length === 0) { container.innerHTML = '<div>Нет входящих заявок</div>'; return; }
+            let html = '';
+            for(let req of requests) {
+                html += `<div class="friend-card">
+                            ${req.fromName} хочет добавить вас в друзья
+                            <div style="margin-top:8px;">
+                                <button class="btn-action accept-req" data-id="${req.id}" data-action="accept">✅ Подтвердить</button>
+                                <button class="btn-action reject-req" data-id="${req.id}" data-action="reject" style="background:#8b3c2c;">❌ Отклонить</button>
+                            </div>
+                        </div>`;
+            }
+            container.innerHTML = html;
+            document.querySelectorAll('.accept-req').forEach(btn => btn.addEventListener('click', async (e) => {
+                const id = btn.dataset.id;
+                await apiCall('/friends/respond', 'POST', { requestId: id, action: 'accept' });
+                showNotify("Дружба подтверждена! Бонус получен.", true);
+                loadPendingRequests();
+                loadFriendsList();
+                updateRating();
+            }));
+            document.querySelectorAll('.reject-req').forEach(btn => btn.addEventListener('click', async (e) => {
+                const id = btn.dataset.id;
+                await apiCall('/friends/respond', 'POST', { requestId: id, action: 'reject' });
+                showNotify("Запрос отклонён", true);
+                loadPendingRequests();
+            }));
+        } catch(e) { console.error(e); }
+    }
+    async function loadFriendsList() {
+        const players = await apiCall(`/load/${playerId}`);
+        const friends = players.friends || [];
+        let container = document.getElementById('friendsList');
+        if(!container) return;
+        if(friends.length === 0) { container.innerHTML = '<div>У вас пока нет друзей</div>'; return; }
+        let html = '';
+        friends.forEach(f => { html += `<div class="friend-card">🎉 ${f.name}</div>`; });
+        container.innerHTML = html;
+    }
+
+    async function createClan(name, icon, desc, isPrivate, password) {
+        try {
+            const clan = await apiCall('/clans/create', 'POST', { leaderId: playerId, name, icon, description: desc, isPrivate, password });
+            myClanId = clan.clanId;
+            showNotify(`Клан "${name}" создан! ID: ${clan.clanId}`, true);
+            renderClanUI();
+        } catch(e) { showNotify(e.message, false); }
+    }
+    async function joinClan(clanId, password) {
+        try {
+            await apiCall('/clans/join', 'POST', { playerId, clanId, password });
+            showNotify("Вы вступили в клан!", true);
+            myClanId = clanId;
+            renderClanUI();
+        } catch(e) { showNotify(e.message, false); }
+    }
+    async function renderClanUI() {
+        let container = document.getElementById('myClanInfo');
+        if(!container) return;
+        if(!myClanId) { container.innerHTML = `<div class="profile-box">Вы не в клане. Создайте свой или вступите через поиск.</div>`; return; }
+        try {
+            const clan = await apiCall(`/clans/${myClanId}`);
+            let membersHtml = clan.members.map(m => `<div>${m.name} (уровень ${m.level})</div>`).join('');
+            container.innerHTML = `
+                <div class="clan-card">
+                    <div><span style="font-size:2rem;">${clan.icon}</span> <strong>${clan.name}</strong> ${clan.private?'🔒':'🌍'}</div>
+                    <div><strong>ID клана:</strong> <code>${clan.clanId}</code> <button id="copyClanIdBtn" class="btn-action">📋</button></div>
+                    <div>${clan.description}</div>
+                    <div><strong>Участники (${clan.members.length}):</strong> ${membersHtml}</div>
+                </div>
+            `;
+            document.getElementById('copyClanIdBtn')?.addEventListener('click', () => { navigator.clipboard.writeText(clan.clanId); showNotify("ID скопирован", true); });
+        } catch(e) { container.innerHTML = '<div>Ошибка загрузки клана</div>'; }
+    }
+
+    async function searchPlayers(query) {
+        const res = await apiCall(`/search/players?q=${encodeURIComponent(query)}`);
+        let container = document.getElementById('searchPlayersResult');
+        if(!container) return;
+        if(!res.length) { container.innerHTML = '<div>Ничего не найдено</div>'; return; }
+        let html = '';
+        res.forEach(p => {
+            html += `<div class="item-card"><span>${p.name} (ур.${p.level})</span><button class="btn-action invite-player" data-id="${p.playerId}">🤝 Пригласить</button></div>`;
+        });
+        container.innerHTML = html;
+        document.querySelectorAll('.invite-player').forEach(btn => {
+            btn.addEventListener('click', () => sendFriendInvite(btn.dataset.id));
+        });
+    }
+    async function searchClans(query) {
+        const res = await apiCall(`/search/clans?q=${encodeURIComponent(query)}`);
+        let container = document.getElementById('searchClansResult');
+        if(!container) return;
+        if(!res.length) { container.innerHTML = '<div>Ничего не найдено</div>'; return; }
+        let html = '';
+        res.forEach(c => {
+            html += `<div class="item-card"><span>${c.icon} ${c.name} (участников: ${c.membersCount}) ${c.private?'🔒':''}</span>
+                     <button class="btn-action join-clan-search" data-id="${c.clanId}" data-private="${c.private}">Вступить</button></div>`;
+        });
+        container.innerHTML = html;
+        document.querySelectorAll('.join-clan-search').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                let clanId = btn.dataset.id;
+                let isPrivate = btn.dataset.private === 'true';
+                let pwd = isPrivate ? prompt("Введите пароль клана:") : "";
+                await joinClan(clanId, pwd);
+            });
+        });
+    }
+
+    async function updateRating() {
+        const allPlayers = await apiCall('/players/all');
+        if(!allPlayers.length) return;
+        allPlayers.sort((a,b)=>b.level - a.level || b.coins - a.coins);
+        let tbody = document.getElementById('rankTbody');
+        if(tbody){
+            let html='';
+            allPlayers.slice(0,15).forEach((p,i)=>{
+                html+=`<tr ${p.playerId===playerId?'style="background:#3a2e1eaa;"':''}><td>${i+1}</td><td>${p.name}</td><td>🎯 ${p.level}</td><td>🪙 ${p.coins}</td></tr>`;
+            });
+            tbody.innerHTML=html;
+        }
+    }
+
+    function renderProfile() {
+        let container = document.getElementById('profileContent');
+        if(!container) return;
+        container.innerHTML = `
+            <div class="profile-box">
+                <div><strong>Ваше имя:</strong> <input type="text" id="profileNameInput" value="${escapeHtml(playerName)}"></div>
+                <button id="updateProfileBtn" class="btn-action">💾 Обновить профиль</button>
+                <div><strong>ID:</strong> ${playerId}</div>
+                <div><strong>Уровень:</strong> ${playerLevel} | Опыт: ${currentXp}</div>
+                <div><strong>Друзей:</strong> ${invitedFriends.length}</div>
+                <div><strong>Реферальный код:</strong> <code>${myReferralCode}</code> <button id="copyRefCodeBtn" class="btn-action">📋</button></div>
+            </div>
+            <div class="section-title">📖 Об игре</div>
+            <div style="background:#0f1622; border-radius:1.5rem; padding:1rem;">
+                <p><strong>КликКлан</strong> — кликер с кланами, друзьями и P2P-биржей. Кликай по монетке, выполняй квесты, повышай уровень, открывай сундуки, продавай предметы, создавай кланы с паролем, приглашай друзей (с подтверждением) и соревнуйся в рейтинге.</p>
+                <p><strong>Как играть:</strong> Нажимай на монетку → покупай улучшения → делай задания → открывай сундуки → торгуй на бирже → приглашай друзей → создавай клан → становись лучшим!</p>
+            </div>
+        `;
+        document.getElementById('updateProfileBtn')?.addEventListener('click', async () => {
+            let newName = document.getElementById('profileNameInput').value.trim();
+            if(newName) { playerName = newName; localStorage.setItem('playerName', playerName); await saveToServer(); showNotify("Имя обновлено", true); renderProfile(); }
+        });
+        document.getElementById('copyRefCodeBtn')?.addEventListener('click', () => { navigator.clipboard.writeText(myReferralCode); showNotify("Код скопирован", true); });
+    }
+
+    function escapeHtml(str) { return String(str).replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+    function buildUI() {
+        const mainDiv = document.getElementById('mainContent');
+        mainDiv.innerHTML = `
+            <div id="mainTab" class="tab-pane active-pane">
+                <div class="click-zone">
+                    <div class="click-btn" id="clickButton">
+                        <div class="click-icon">🪙</div>
+                    </div>
+                    <div class="click-power-badge" id="clickPowerBadge">💥 Сила клика: 1</div>
+                    <button id="openChestBtn" style="background:#ab8e54; border:none; padding:10px 20px; border-radius:2rem; margin-top:15px;">🎁 Открыть сундук (50)</button>
+                </div>
+                <div class="active-quest"><div style="display:flex; justify-content:space-between;"><strong>📜 ЗАДАНИЕ</strong> <span id="questRewardBadge"></span></div><div id="questDescription"></div><div class="quest-progress"><div class="quest-progress-fill" id="questProgressFill"></div></div><div id="questProgressText"></div></div>
+                <div><div class="section-title">⚙️ Улучшения</div><div id="shopContainer"></div></div>
+                <button id="resetGameBtn" style="background:#442c1c; margin-top:20px; padding:8px; border-radius:2rem; border:none; color:white;">🔄 СБРОС (локальный)</button>
+            </div>
+            <div id="inventoryTab" class="tab-pane"><div class="section-title">🎒 Инвентарь</div><div id="inventoryList"></div><button id="refreshInventoryBtn" class="btn-action">🔄 Обновить</button></div>
+            <div id="marketTab" class="tab-pane"><div class="section-title">🏪 Биржа</div><div id="marketList"></div><button id="refreshMarketBtn" class="btn-action">🔄 Обновить</button></div>
+            <div id="friendsTab" class="tab-pane">
+                <div class="section-title">👥 Друзья</div>
+                <div class="profile-box"><strong>Входящие заявки</strong><div id="pendingRequestsList"></div></div>
+                <div class="profile-box"><strong>Мои друзья</strong><div id="friendsList"></div></div>
+                <div class="profile-box"><strong>Пригласить друга по коду</strong><input type="text" id="inviteFriendCode" placeholder="Код друга"><button id="sendInviteBtn" class="btn-action">Отправить приглашение</button></div>
+            </div>
+            <div id="ratingTab" class="tab-pane"><div class="section-title">🏆 Рейтинг игроков</div><table class="rank-table"><thead><tr><th>#</th><th>Игрок</th><th>Уровень</th><th>Монеты</th></tr></thead><tbody id="rankTbody"></tbody></table></div>
+            <div id="clansTab" class="tab-pane">
+                <div class="section-title">⚔️ Мой клан</div><div id="myClanInfo"></div>
+                <div class="section-title">Создать клан</div>
+                <div class="profile-box"><input type="text" id="newClanName" placeholder="Название"><input type="text" id="newClanIcon" placeholder="Значок" value="🏰"><textarea id="newClanDesc" rows="2" placeholder="Описание"></textarea>
+                <div class="flex-row"><label>Приватный:</label><label class="toggle-switch"><input type="checkbox" id="clanPrivateCheck"><span class="slider"></span></label></div>
+                <div id="clanPasswordDiv" style="display:none;"><input type="password" id="newClanPassword" placeholder="Пароль"></div>
+                <button id="createClanBtn" class="btn-action">Создать клан</button></div>
+            </div>
+            <div id="searchTab" class="tab-pane">
+                <div class="section-title">🔍 Поиск игроков</div><input type="text" id="searchPlayersInput" placeholder="Имя игрока"><button id="searchPlayersBtn" class="btn-action">Искать</button><div id="searchPlayersResult"></div>
+                <div class="section-title">🔍 Поиск кланов</div><input type="text" id="searchClansInput" placeholder="Название клана"><button id="searchClansBtn" class="btn-action">Искать</button><div id="searchClansResult"></div>
+            </div>
+            <div id="profileTab" class="tab-pane"><div id="profileContent"></div></div>
+        `;
+        document.getElementById('clickButton')?.addEventListener('click', () => { let g=1+clickUpgradeLevel; addCoins(g); totalClicks++; if(activeQuest?.type==='clicks') updateQuestProgress(); showNotify(`+${g}🪙`,true); updateUI(); });
+        document.getElementById('openChestBtn')?.addEventListener('click', openChest);
+        document.getElementById('refreshInventoryBtn')?.addEventListener('click', renderInventory);
+        document.getElementById('refreshMarketBtn')?.addEventListener('click', renderMarket);
+        document.getElementById('resetGameBtn')?.addEventListener('click', () => { if(confirm("Сбросить локально?")) location.reload(); });
+        document.getElementById('sendInviteBtn')?.addEventListener('click', () => { let code = document.getElementById('inviteFriendCode').value.trim(); if(code) sendFriendInvite(code); else showNotify("Введите код",false); });
+        document.getElementById('createClanBtn')?.addEventListener('click', async () => {
+            let name = document.getElementById('newClanName').value.trim();
+            if(!name) { showNotify("Введите название",false); return; }
+            let icon = document.getElementById('newClanIcon').value.trim() || '🏰';
+            let desc = document.getElementById('newClanDesc').value;
+            let isPrivate = document.getElementById('clanPrivateCheck').checked;
+            let password = document.getElementById('newClanPassword').value;
+            await createClan(name, icon, desc, isPrivate, password);
+        });
+        document.getElementById('clanPrivateCheck')?.addEventListener('change', (e) => {
+            document.getElementById('clanPasswordDiv').style.display = e.target.checked ? 'flex' : 'none';
+        });
+        document.getElementById('searchPlayersBtn')?.addEventListener('click', () => searchPlayers(document.getElementById('searchPlayersInput').value));
+        document.getElementById('searchClansBtn')?.addEventListener('click', () => searchClans(document.getElementById('searchClansInput').value));
+    }
+
+    function initMenu() {
+        const menuBtn = document.getElementById('menuToggle');
+        const menuPanel = document.getElementById('menuPanel');
+        const overlay = document.getElementById('menuOverlay');
+        function closeMenu() { menuPanel.classList.remove('show'); overlay.style.display='none'; }
+        function openMenu() { menuPanel.classList.add('show'); overlay.style.display='block'; }
+        menuBtn.onclick = (e) => { e.stopPropagation(); if(menuPanel.classList.contains('show')) closeMenu(); else openMenu(); };
+        overlay.onclick = closeMenu;
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.onclick = () => {
+                let tab = item.dataset.tab;
+                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active-pane'));
+                document.getElementById(tab+'Tab').classList.add('active-pane');
+                if(tab === 'friends') { loadPendingRequests(); loadFriendsList(); }
+                if(tab === 'clans') renderClanUI();
+                if(tab === 'profile') renderProfile();
+                if(tab === 'rating') updateRating();
+                closeMenu();
+            };
+        });
+    }
+
+    window.onload = async () => {
+        buildUI();
+        initMenu();
+        await registerOnServer();
+        await loadFromServer();
+        setInterval(() => { saveToServer(); loadPendingRequests(); updateRating(); }, 10000);
+        loadPendingRequests();
+        loadFriendsList();
+        renderInventory();
+        renderMarket();
+        renderProfile();
+    };
+</script>
+</body>
+</html>
